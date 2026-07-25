@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EMS Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-dark bg-dark px-4">
+    <span class="navbar-brand mb-0 h1">EMS Dashboard</span>
+    <div>
+        <span class="text-white me-3">Welcome, {{ username }}</span>
+        <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">Logout</a>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="alert alert-success">
+        System Status: All services operational.
+    </div>
+
+    {% if username == 'admin' %}
+    <div class="card border-warning mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Administrator Tools</h5>
+            <p class="card-text text-muted">Access restricted system metrics and security logs.</p>
+            <a href="{{ url_for('view_audit_logs') }}" class="btn btn-warning">View System Audit Logs</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>
