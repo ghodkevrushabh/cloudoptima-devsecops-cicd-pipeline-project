@@ -5,7 +5,7 @@ terraform {
       version = "~> 5.0"
     }
   }
-}
+
 
 # Tells Terraform to store its memory in AWS instead of the Jenkins VM
   backend "s3" {
