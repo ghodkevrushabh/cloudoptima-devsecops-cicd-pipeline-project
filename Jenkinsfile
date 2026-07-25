@@ -79,20 +79,21 @@ pipeline {
                 }
             }
         }
-        stage('7. FinOps (Infracost)') {
+	
+	stage('7. FinOps (Infracost)') {
             steps {
                 script {
-                    sh 'curl -L "https://github.com/infracost/infracost/releases/latest/download/infracost-linux-amd64.tar.gz" -o infracost.tar.gz'
+                    // Download and extract Infracost
+                    sh 'curl -sL "https://github.com/infracost/infracost/releases/latest/download/infracost-linux-amd64.tar.gz" -o infracost.tar.gz'
                     sh 'tar xzf infracost.tar.gz'
                     
-                    // Calculates cost using the same Terraform files
-                    sh './infracost-linux-amd64 breakdown --path ./terraform > infracost_report.txt'
-                    env.MONTHLY_COST = sh(script: 'grep "Total Monthly Cost" infracost_report.txt || echo "Cost not found"', returnStdout: true).trim()
-                    echo "FINOPS AUDIT: ${env.MONTHLY_COST}"
+                    echo "================ FINOPS AUDIT REPORT ================"
+                    // Run Infracost directly to print the full cost breakdown table to the console!
+                    sh './infracost-linux-amd64 breakdown --path ./terraform'
+                    echo "====================================================="
                 }
             }
         }
-
         stage('8. Terraform Deploy') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')

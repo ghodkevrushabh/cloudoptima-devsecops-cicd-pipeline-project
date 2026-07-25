@@ -7,6 +7,18 @@ terraform {
   }
 }
 
+# Tells Terraform to store its memory in AWS instead of the Jenkins VM
+  backend "s3" {
+    bucket = "ems-terraform-state-itiss" # bucket nano
+    key    = "devsecops/terraform.tfstate"  # The file path inside the bucket
+    region = "eu-north-1"
+    dynamodb_table = "terraform-state-lock" # <-- Adds the concurrency lock
+    encrypt        = true                   # <-- Secures your state file at rest
+  }
+}
+
+
+
 provider "aws" {
   region = "eu-north-1" 
 }
