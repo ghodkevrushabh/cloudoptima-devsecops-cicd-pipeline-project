@@ -122,6 +122,11 @@ pipeline {
             }
         }
 	stage('9. Deploy App to EC2 (CD)') {
+            // ADD THIS ENVIRONMENT BLOCK:
+            environment {
+                AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
+                AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+            }
             steps {
                 dir('terraform') {
                     script {
@@ -133,9 +138,7 @@ pipeline {
 
                         echo "🚀 Connecting to ${ec2_ip} to deploy latest code..."
                         
-                        // Securely inject the SSH key and username
                         withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-                            // -o StrictHostKeyChecking=no prevents the SSH prompt from blocking Jenkins
                             sh """
                             ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \${SSH_USER}@${ec2_ip} '
                                 sudo docker pull vrushabhghodke/ems-app:latest
