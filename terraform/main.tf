@@ -67,6 +67,7 @@ resource "aws_instance" "app_server" {
   ami                    = data.aws_ssm_parameter.ubuntu.value
   instance_type          = "t3.micro"
   vpc_security_group_ids = [aws_security_group.app_sg.id]
+  key_name               = "ems-jenkins-key"
 
   user_data = <<-EOF
               #!/bin/bash
