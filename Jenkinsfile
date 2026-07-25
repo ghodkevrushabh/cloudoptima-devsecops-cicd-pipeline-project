@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('docker-credentials')
+        DOCKERHUB_CREDENTIALS = credentials('docker-hub-credentials')
         SONAR_TOKEN           = credentials('sonarqube-token')
         INFRACOST_API_KEY     = credentials('infracost-api-key')
         IMAGE_NAME            = 'vrushabhghodke/ems-app'
@@ -17,24 +17,22 @@ pipeline {
         }
 
 
- 	stage('2. SAST (SonarQube)') {
+	stage('2. SAST (SonarQube)') {
             steps {
-                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                // 1. Tell Jenkins to inject the Server URL and Token secretly
+                withSonarQubeEnv('SonarQube') {
                     dir('employee-management') {
-                        sh '''
-                        docker run --rm --network host \
-                          -v "$(pwd):/usr/src" \
-                          sonarsource/sonar-scanner-cli \
-                          -Dsonar.projectKey=em-system-app \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=http://localhost:9000 \
-                          -Dsonar.login=$SONAR_TOKEN
-                        '''
+                        script {
+                            // 2. Tell Jenkins to grab the scanner tool automatically
+                            def scannerHome = tool 'SonarScanner'
+                            
+                            // 3. Run the scan
+                            sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=ems-app -Dsonar.sources=."
+                        }
                     }
                 }
             }
         }
-
         stage('3. Build & SCA (Trivy)') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:latest -f employee-management/Dockerfile employee-management'
