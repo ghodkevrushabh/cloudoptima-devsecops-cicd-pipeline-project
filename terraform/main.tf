@@ -8,28 +8,17 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-north-1" # Change to your preferred AWS region (e.g., us-east-1) if needed
+  region = "eu-north-1" 
 }
 
-# Automatically fetch the latest official Ubuntu 22.04 LTS AMI for your region
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["098965243132"] # Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
+# Automatically fetches the exact Ubuntu 22.04 AMI for your specific region
+data "aws_ssm_parameter" "ubuntu" {
+  name = "/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id"
 }
 
 # Security Group: Allows SSH (22), App UI (8080), and Full Outbound Access
 resource "aws_security_group" "app_sg" {
-  name        = "em-system-flask-sg"
+  name        = "ems-app-sg"
   description = "Security group for DevSecOps Python Flask Application"
 
   ingress {
@@ -48,7 +37,7 @@ resource "aws_security_group" "app_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Essential: Allows the server to download Docker and pull images from Docker Hub
+  # Essential: Allows the server to download Docker and pull images
   egress {
     from_port   = 0
     to_port     = 0
@@ -57,33 +46,30 @@ resource "aws_security_group" "app_sg" {
   }
 
   tags = {
-    Name = "em-system-flask-sg"
+    Name = "ems-app-sg"
   }
 }
 
 # EC2 Instance Provisioning
 resource "aws_instance" "app_server" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.micro" # Tested by OPA policy
+  ami                    = data.aws_ssm_parameter.ubuntu.value
+  instance_type          = "t3.micro"
   vpc_security_group_ids = [aws_security_group.app_sg.id]
 
   user_data = <<-EOF
               #!/bin/bash
               export DEBIAN_FRONTEND=noninteractive
-              
-              # Install Docker
               curl -fsSL https://get.docker.com -o get-docker.sh
               sh get-docker.sh
-              
+
               systemctl start docker
               systemctl enable docker
-              
-              # Pull and run the Flask container
-              docker run -d --name ems-app -p 8080:8080 vrushabhghodke/em-system-app:latest
+
+              docker run -d --name ems-app -p 8080:8080 vrushabhghodke/ems-app:latest
               EOF
 
   tags = {
-    Name = "DevSecOps-Flask-App-Server"
+    Name = "DevSecOps-App-Server"
   }
 }
 

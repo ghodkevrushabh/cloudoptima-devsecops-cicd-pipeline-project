@@ -2,11 +2,10 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('docker-hub-credentials')
-        SONAR_TOKEN           = credentials('sonarqube-token')
-        INFRACOST_API_KEY     = credentials('infracost-api-key')
-        IMAGE_NAME            = 'vrushabhghodke/ems-app'
-        IMAGE_TAG             = "${BUILD_NUMBER}"
+        // Infracost automatically looks for this specific environment variable to authenticate
+        INFRACOST_API_KEY = credentials('infracost-api-key')
+        IMAGE_NAME        = 'vrushabhghodke/ems-app'
+        IMAGE_TAG         = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -16,23 +15,19 @@ pipeline {
             }
         }
 
-
-	stage('2. SAST (SonarQube)') {
+        stage('2. SAST (SonarQube)') {
             steps {
-                // 1. Tell Jenkins to inject the Server URL and Token secretly
                 withSonarQubeEnv('SonarQube') {
                     dir('employee-management') {
                         script {
-                            // 2. Tell Jenkins to grab the scanner tool automatically
                             def scannerHome = tool 'SonarScanner'
-                            
-                            // 3. Run the scan
                             sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=ems-app -Dsonar.sources=."
                         }
                     }
                 }
             }
         }
+
         stage('3. Build & SCA (Trivy)') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:latest -f employee-management/Dockerfile employee-management'
@@ -55,9 +50,7 @@ pipeline {
             }
         }
 
-
-	stage('6. OPA Policy Enforcement') {
-            // Add this environment block!
+        stage('6. OPA Policy Enforcement') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
@@ -65,17 +58,19 @@ pipeline {
             steps {
                 dir('terraform') {
                     sh 'terraform init'
-                    // Now it has the keys it needs to generate the plan
+                    
+                    // Generates the blueprint (plan) WITHOUT deploying
                     sh 'terraform plan -out=tfplan'
                     sh 'terraform show -json tfplan > tfplan.json'
-                    
+
+                    // OPA evaluates the blueprint against your t3.micro rule
                     sh '''
                     docker run --rm -v $(pwd):/tf openpolicyagent/opa eval \
                     --data /tf/policy.rego \
                     --input /tf/tfplan.json \
                     "data.terraform.validation.deny" > opa_results.json
                     '''
-                    
+
                     sh 'grep -q "OPA POLICY VIOLATION" opa_results.json && { echo "OPA Policy Failed!"; cat opa_results.json; exit 1; } || echo "OPA Policy Passed!"'
                 }
             }
@@ -86,6 +81,8 @@ pipeline {
                 script {
                     sh 'curl -L "https://github.com/infracost/infracost/releases/latest/download/infracost-linux-amd64.tar.gz" -o infracost.tar.gz'
                     sh 'tar xzf infracost.tar.gz'
+                    
+                    // Calculates cost using the same Terraform files
                     sh './infracost-linux-amd64 breakdown --path ./terraform > infracost_report.txt'
                     env.MONTHLY_COST = sh(script: 'grep "Total Monthly Cost" infracost_report.txt || echo "Cost not found"', returnStdout: true).trim()
                     echo "FINOPS AUDIT: ${env.MONTHLY_COST}"
@@ -100,10 +97,11 @@ pipeline {
             }
             steps {
                 dir('terraform') {
+                    // Because OPA and Infracost passed, we finally deploy to AWS
                     sh 'terraform apply -auto-approve tfplan'
                     script {
                         def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
-                        echo "SUCCESS! App URL: http://${ec2_ip}:8080/employees"
+                        echo "SUCCESS! App URL: http://${ec2_ip}:8080/"
                     }
                 }
             }
