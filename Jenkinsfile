@@ -140,7 +140,7 @@ pipeline {
                         withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                             sh """
                             # 1. Securely copy the config files to the EC2 server
-                            scp -o StrictHostKeyChecking=no -i \$SSH_KEY docker-compose.yml prometheus.yml \${SSH_USER}@${ec2_ip}:/home/ubuntu/
+                            scp -o StrictHostKeyChecking=no -i \$SSH_KEY ../employee-management/docker-compose.yml ../employee-management/prometheus.yml \${SSH_USER}@${ec2_ip}:/home/ubuntu/
                             
                             # 2. SSH in, shut down the old standalone app, and launch the new stack
                             ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \${SSH_USER}@${ec2_ip} '
