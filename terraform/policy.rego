@@ -1,13 +1,14 @@
 package terraform.validation
+import rego.v1
 
 # Default allow is false
-default allow = false
+default allow := false
 
 # List of allowed, cost-effective instance types
-allowed_instance_types = {"t3.micro", "t2.micro"}
+allowed_instance_types := {"t3.micro", "t2.micro"}
 
 # Deny deployment if the instance type is NOT in the allowed list
-deny[msg] {
+deny contains msg if {
     resource := input.resource_changes[_]
     resource.type == "aws_instance"
     instance_type := resource.change.after.instance_type

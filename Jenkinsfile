@@ -70,14 +70,7 @@ pipeline {
                     // 2. Run OPA and print the output directly to the Jenkins console
                     sh 'echo "--- OPA EVALUATION OUTPUT ---"'
                     
-                    // We added '|| true' so Jenkins doesn't instantly crash if OPA gets mad. 
-                    // This forces it to print the error to the screen.
-                    sh '''
-                    docker run --rm -v $(pwd):/tf openpolicyagent/opa eval \
-                    --data /tf/policy.rego \
-                    --input /tf/tfplan.json \
-                    "data.terraform.validation.deny" || true
-                    '''
+		    sh 'docker run --rm -v $(pwd):/tf openpolicyagent/opa eval --data /tf/policy.rego --input /tf/tfplan.json "data.terraform.validation.deny" > opa_results.json'
                 }
             }
         }
@@ -96,18 +89,34 @@ pipeline {
                 }
             }
         }
-        stage('8. Terraform Deploy') {
+	stage('8. Terraform Deploy') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
             }
             steps {
                 dir('terraform') {
-                    // Because OPA and Infracost passed, we finally deploy to AWS
-		    sh 'terraform apply -auto-approve -input=false tfplan'
                     script {
+                        // Capture the output of the apply command
+                        def apply_output = sh(script: 'terraform apply -auto-approve -input=false tfplan', returnStdout: true).trim()
+                        echo apply_output // Print standard terraform logs
+                        
                         def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
-                        echo "SUCCESS! App URL: http://${ec2_ip}:8080/"
+
+                        echo "====================================================="
+                        if (apply_output.contains("0 added, 0 changed, 0 destroyed")) {
+                            echo "✅ INFRASTRUCTURE: EC2 is already deployed and stable."
+                            echo "🔄 CD PIPELINE: Ready to push application changes to existing server."
+                        } else {
+                            echo "✅ INFRASTRUCTURE: Successfully provisioned new EC2 resources."
+                        }
+                        
+                        if (ec2_ip == "") {
+                            echo "⚠️ WARNING: EC2 Public IP is missing! Start your instance in AWS."
+                        } else {
+                            echo "🚀 LIVE APP URL: http://${ec2_ip}:8080/"
+                        }
+                        echo "====================================================="
                     }
                 }
             }
