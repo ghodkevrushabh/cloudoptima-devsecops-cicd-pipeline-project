@@ -57,7 +57,9 @@ pipeline {
             }
             steps {
                 dir('terraform') {
-                    sh 'terraform init'
+                    // -input=false prevents any future interactive prompts from crashing Jenkins
+                    // -force-copy automatically migrates the state to S3
+		    sh 'terraform init -input=false -force-copy'
                     sh 'terraform plan -out=tfplan'
                     sh 'terraform show -json tfplan > tfplan.json'
 
@@ -102,7 +104,7 @@ pipeline {
             steps {
                 dir('terraform') {
                     // Because OPA and Infracost passed, we finally deploy to AWS
-                    sh 'terraform apply -auto-approve tfplan'
+		    sh 'terraform apply -auto-approve -input=false tfplan'
                     script {
                         def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
                         echo "SUCCESS! App URL: http://${ec2_ip}:8080/"
