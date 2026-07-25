@@ -137,17 +137,21 @@ pipeline {
                         }
 
                         echo "🚀 Connecting to ${ec2_ip} to deploy latest code..."
-                        
                         withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                             sh """
+                            # 1. Securely copy the config files to the EC2 server
+                            scp -o StrictHostKeyChecking=no -i \$SSH_KEY docker-compose.yml prometheus.yml \${SSH_USER}@${ec2_ip}:/home/ubuntu/
+                            
+                            # 2. SSH in, shut down the old standalone app, and launch the new stack
                             ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \${SSH_USER}@${ec2_ip} '
-                                sudo docker pull vrushabhghodke/ems-app:latest
                                 sudo docker stop ems-app || true
                                 sudo docker rm ems-app || true
-                                sudo docker run -d --name ems-app -p 8080:8080 vrushabhghodke/ems-app:latest
+                                sudo docker compose pull
+                                sudo docker compose up -d
                             '
                             """
                         }
+
                         echo "✅ CD COMPLETE: New application code is live at http://${ec2_ip}:8080/"
                     }
                 }
