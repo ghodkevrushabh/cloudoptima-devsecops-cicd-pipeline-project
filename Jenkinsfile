@@ -50,7 +50,7 @@ pipeline {
             }
         }
 
-        stage('6. OPA Policy Enforcement') {
+	stage('6. OPA Policy Enforcement') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
@@ -58,18 +58,11 @@ pipeline {
             steps {
                 dir('terraform') {
                     sh 'terraform init'
-                    
-                    // Generates the blueprint (plan) WITHOUT deploying
                     sh 'terraform plan -out=tfplan'
                     sh 'terraform show -json tfplan > tfplan.json'
 
-                    // OPA evaluates the blueprint against your t3.micro rule
-                    sh '''
-                    docker run --rm -v $(pwd):/tf openpolicyagent/opa eval \
-                    --data /tf/policy.rego \
-                    --input /tf/tfplan.json \
-                    "data.terraform.validation.deny" > opa_results.json
-                    '''
+                    // Single-line command to prevent bash line-break errors
+                    sh 'docker run --rm -v $(pwd):/tf openpolicyagent/opa eval --data /tf/policy.rego --input /tf/tfplan.json "data.terraform.validation.deny" > opa_results.json'
 
                     sh 'grep -q "OPA POLICY VIOLATION" opa_results.json && { echo "OPA Policy Failed!"; cat opa_results.json; exit 1; } || echo "OPA Policy Passed!"'
                 }
