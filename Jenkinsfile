@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('1. Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/ghodkevrushabh/ems-devsecops-project-.git'
+                git branch: 'main', url: 'https://github.com/ghodkevrushabh/ems-devsecops-project.git'
             }
         }
 
@@ -20,8 +20,8 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     dir('employee-management') {
-                        // Replaced Maven with standard SonarScanner for Python
-                        sh 'sonar-scanner -Dsonar.projectKey=em-system-app -Dsonar.sources=.'
+                   
+                        sh 'sonar-scanner -Dsonar.projectKey=ems-app -Dsonar.sources=.'
                     }
                 }
             }
