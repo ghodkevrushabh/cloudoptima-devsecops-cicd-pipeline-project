@@ -77,6 +77,31 @@ pipeline {
             }
         }
 
+	stage('6. OPA Policy Enforcement') {
+            // Add this environment block!
+            environment {
+                AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
+                AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
+            }
+            steps {
+                dir('terraform') {
+                    sh 'terraform init'
+                    // Now it has the keys it needs to generate the plan
+                    sh 'terraform plan -out=tfplan'
+                    sh 'terraform show -json tfplan > tfplan.json'
+                    
+                    sh '''
+                    docker run --rm -v $(pwd):/tf openpolicyagent/opa eval \
+                    --data /tf/policy.rego \
+                    --input /tf/tfplan.json \
+                    "data.terraform.validation.deny" > opa_results.json
+                    '''
+                    
+                    sh 'grep -q "OPA POLICY VIOLATION" opa_results.json && { echo "OPA Policy Failed!"; cat opa_results.json; exit 1; } || echo "OPA Policy Passed!"'
+                }
+            }
+        }
+
         stage('7. FinOps (Infracost)') {
             steps {
                 script {
