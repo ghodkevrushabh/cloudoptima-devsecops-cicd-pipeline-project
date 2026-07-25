@@ -17,18 +17,18 @@ pipeline {
         }
 
 
-	stage('2. SAST (SonarQube)') {
+ 	stage('2. SAST (SonarQube)') {
             steps {
-                withSonarQubeEnv('SonarQube') {
+                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
                     dir('employee-management') {
                         sh '''
-                        docker run --rm \
-                          -e SONAR_HOST_URL=$SONAR_HOST_URL \
-                          -e SONAR_TOKEN=$SONAR_AUTH_TOKEN \
+                        docker run --rm --network host \
                           -v "$(pwd):/usr/src" \
                           sonarsource/sonar-scanner-cli \
                           -Dsonar.projectKey=em-system-app \
-                          -Dsonar.sources=.
+                          -Dsonar.sources=. \
+                          -Dsonar.host.url=http://localhost:9000 \
+                          -Dsonar.token=$SONAR_TOKEN
                         '''
                     }
                 }
