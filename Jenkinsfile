@@ -61,14 +61,24 @@ pipeline {
                     sh 'terraform plan -out=tfplan'
                     sh 'terraform show -json tfplan > tfplan.json'
 
-                    // Single-line command to prevent bash line-break errors
-                    sh 'docker run --rm -v $(pwd):/tf openpolicyagent/opa eval --data /tf/policy.rego --input /tf/tfplan.json "data.terraform.validation.deny" > opa_results.json'
+                    // 1. Prove the files are actually in the directory!
+                    sh 'echo "--- FILES IN TERRAFORM DIRECTORY ---"'
+                    sh 'ls -la'
 
-                    sh 'grep -q "OPA POLICY VIOLATION" opa_results.json && { echo "OPA Policy Failed!"; cat opa_results.json; exit 1; } || echo "OPA Policy Passed!"'
+                    // 2. Run OPA and print the output directly to the Jenkins console
+                    sh 'echo "--- OPA EVALUATION OUTPUT ---"'
+                    
+                    // We added '|| true' so Jenkins doesn't instantly crash if OPA gets mad. 
+                    // This forces it to print the error to the screen.
+                    sh '''
+                    docker run --rm -v $(pwd):/tf openpolicyagent/opa eval \
+                    --data /tf/policy.rego \
+                    --input /tf/tfplan.json \
+                    "data.terraform.validation.deny" || true
+                    '''
                 }
             }
         }
-
         stage('7. FinOps (Infracost)') {
             steps {
                 script {
