@@ -90,18 +90,19 @@ def view_audit_logs():
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).all()
     return render_template('audit_logs.html', logs=logs)
 
-
-# --- BOOTSTRAP DB + DEFAULT ADMIN ---
 with app.app_context():
     db.create_all()
-    # Create a default admin user if the database is empty
+    # 1. Create Admin
     if not User.query.filter_by(username='admin').first():
-        hashed_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
-        admin = User(username='admin', password_hash=hashed_pw)
-        db.session.add(admin)
-        db.session.commit()
-        print("Default admin user created: admin / admin123")
+        admin_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
+        db.session.add(User(username='admin', password_hash=admin_pw))
 
+    # 2. Create Standard Employee
+    if not User.query.filter_by(username='employee').first():
+        emp_pw = generate_password_hash('password123', method='pbkdf2:sha256')
+        db.session.add(User(username='employee', password_hash=emp_pw))
+
+    db.session.commit()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
