@@ -55,27 +55,6 @@ pipeline {
             }
         }
 
-        stage('6. OPA Policy Enforcement') {
-            steps {
-                dir('terraform') {
-                    sh 'terraform init'
-                    // Generate the plan and convert to JSON for OPA
-                    sh 'terraform plan -out=tfplan'
-                    sh 'terraform show -json tfplan > tfplan.json'
-                    
-                    // Run OPA inside a container to evaluate the plan
-                    sh '''
-                    docker run --rm -v $(pwd):/tf openpolicyagent/opa eval \
-                    --data /tf/policy.rego \
-                    --input /tf/tfplan.json \
-                    "data.terraform.validation.deny" > opa_results.json
-                    '''
-                    
-                    // Fail pipeline if OPA returns any violations
-                    sh 'grep -q "OPA POLICY VIOLATION" opa_results.json && { echo "OPA Policy Failed!"; cat opa_results.json; exit 1; } || echo "OPA Policy Passed!"'
-                }
-            }
-        }
 
 	stage('6. OPA Policy Enforcement') {
             // Add this environment block!
