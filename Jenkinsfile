@@ -137,21 +137,31 @@ pipeline {
                         }
 
                         echo "🚀 Connecting to ${ec2_ip} to deploy latest code..."
-                        withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+			withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                             sh """
-                            # 1. Securely copy the config files to the EC2 server
+                            # 1. Securely copy config files
                             scp -o StrictHostKeyChecking=no -i \$SSH_KEY ../employee-management/docker-compose.yml ../employee-management/prometheus.yml \${SSH_USER}@${ec2_ip}:/home/ubuntu/
                             
-                            # 2. SSH in, shut down the old standalone app, and launch the new stack
+                            # 2. SSH into EC2, auto-install Docker if missing, and launch stack
                             ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \${SSH_USER}@${ec2_ip} '
+                                # Install Docker & Docker Compose if not installed
+                                if ! command -v docker &> /dev/null; then
+                                    echo "Docker not found. Installing Docker and Docker Compose..."
+                                    sudo apt-get update -y
+                                    sudo apt-get install -y docker.io docker-compose-v2
+                                    sudo systemctl start docker
+                                    sudo systemctl enable docker
+                                fi
+
+                                # Stop standalone container if running
                                 sudo docker stop ems-app || true
                                 sudo docker rm ems-app || true
-                                sudo docker compose pull
+
+                                # Pull and launch full stack
                                 sudo docker compose up -d
                             '
                             """
                         }
-
                         echo "✅ CD COMPLETE: New application code is live at http://${ec2_ip}:8080/"
                     }
                 }
