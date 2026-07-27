@@ -11,7 +11,7 @@ terraform {
   backend "s3" {
     bucket = "ems-terraform-state-itiss" # bucket nano
     key    = "devsecops/terraform.tfstate"  # The file path inside the bucket
-    region = "eu-north-1"
+    region = "us-east-1"
     dynamodb_table = "terraform-state-lock" # <-- Adds the concurrency lock
     encrypt        = true                   # <-- Secures your state file at rest
   }
@@ -20,7 +20,7 @@ terraform {
 
 
 provider "aws" {
-  region = "eu-north-1" 
+  region = "us-east-1" 
 }
 
 # Automatically fetches the exact Ubuntu 22.04 AMI for your specific region
