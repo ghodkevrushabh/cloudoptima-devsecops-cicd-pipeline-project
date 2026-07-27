@@ -11,6 +11,8 @@ ingester:
         store: inmemory
       replication_factor: 1
   chunk_idle_period: 15m
+  wal:
+    dir: /tmp/loki/wal
 
 schema_config:
   configs:
@@ -29,11 +31,9 @@ storage_config:
   filesystem:
     directory: /tmp/loki/chunks
 
-# --- FIX FOR LOKI V3+ COMPATIBILITY ---
 limits_config:
   allow_structured_metadata: false
 
-# --- NEW FIX FOR PERMISSION DENIED ---
 compactor:
   working_directory: /tmp/loki/compactor
   shared_store: filesystem
