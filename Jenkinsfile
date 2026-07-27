@@ -139,9 +139,8 @@ pipeline {
                         echo "🚀 Connecting to ${ec2_ip} to deploy latest code..."
 			withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
 			    sh """
-                            # 1. Securely copy config files from employee-management to EC2
-                            scp -o StrictHostKeyChecking=no -i \$SSH_KEY ../employee-management/docker-compose.yml ../employee-management/prometheus.yml \${SSH_USER}@${ec2_ip}:/home/ubuntu/
-                            
+			    # 1. Securely copy config files from employee-management to EC2
+                            scp -o StrictHostKeyChecking=no -i \$SSH_KEY ../employee-management/docker-compose.yml ../employee-management/prometheus.yml ../employee-management/loki-config.yml ../employee-management/promtail-config.yml \${SSH_USER}@${ec2_ip}:/home/ubuntu/                            
                             # 2. SSH into EC2, fix permissions, and launch stack
                             ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \${SSH_USER}@${ec2_ip} '
                                 # Install Docker & Docker Compose if missing
