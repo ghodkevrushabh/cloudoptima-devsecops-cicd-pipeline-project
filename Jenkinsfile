@@ -15,7 +15,7 @@ pipeline {
             }
         }
 
-        stage('1.5: Unit Test & Code Coverage') {
+        stage('2: Unit Test & Code Coverage') {
             steps {
                 sh '''
                 echo "Running Python Unit Tests..."
@@ -31,7 +31,7 @@ pipeline {
             }
         }
 
-        stage('2. SAST (SonarQube)') {
+        stage('3. SAST (SonarQube)') {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     dir('employee-management') {
@@ -44,14 +44,14 @@ pipeline {
             }
         }
 
-        stage('3. Build & SCA (Trivy)') {
+        stage('4. Build & SCA (Trivy)') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:latest -f employee-management/Dockerfile employee-management'
                 sh 'trivy image --timeout 15m --severity HIGH,CRITICAL ${IMAGE_NAME}:latest'
             }
         }
 
-        stage('4. Push to Registry') {
+        stage('5. Push to Registry') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
@@ -60,13 +60,13 @@ pipeline {
             }
         }
 
-        stage('5. IaC Security (Checkov)') {
+        stage('6. IaC Security (Checkov)') {
             steps {
                 sh 'docker run --rm -v "${WORKSPACE}/terraform":/tf bridgecrew/checkov -d /tf --soft-fail'
             }
         }
 
-	stage('6. OPA Policy Enforcement') {
+	stage('7. OPA Policy Enforcement') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
@@ -91,7 +91,7 @@ pipeline {
             }
         }
 	
-	stage('7. FinOps (Infracost)') {
+	stage('8. FinOps (Infracost)') {
             steps {
                 script {
                     // Download and extract Infracost
@@ -105,7 +105,7 @@ pipeline {
                 }
             }
         }
-	stage('8. Terraform Deploy') {
+	stage('9. Terraform Deploy') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
@@ -137,7 +137,7 @@ pipeline {
                 }
             }
         }
-        stage('8.5. Infrastructure Hardening (Ansible)') {
+        stage('10. Infrastructure Hardening (Ansible)') {
             steps {
                 echo "Running OS Hardening Playbook..."
                 sh '''
@@ -149,7 +149,23 @@ pipeline {
                 '''
             }
         }
-	stage('9. Deploy App to EC2 (CD)') {
+
+	stage('11. Generate TLS Certificates') {
+            steps {
+                echo "Generating ephemeral self-signed certificates for Nginx..."
+                sh '''
+                # Ensure the directory exists in the Jenkins workspace
+                mkdir -p nginx/certs
+                
+                # Generate the keys dynamically
+                openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                  -keyout nginx/certs/server.key \
+                  -out nginx/certs/server.crt \
+                  -subj "/C=IN/ST=Maharashtra/L=Pimpri-Chinchwad/O=EMS Security/CN=emsapp.com"
+                '''
+            }
+        }
+	stage('12. Deploy App to EC2 (CD)') {
             // ADD THIS ENVIRONMENT BLOCK:
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
@@ -170,7 +186,16 @@ pipeline {
 			    # 1. Securely copy config files from employee-management to EC2
                             scp -o StrictHostKeyChecking=no -i \$SSH_KEY ../employee-management/docker-compose.yml ../employee-management/prometheus.yml ../employee-management/loki-config.yml ../employee-management/promtail-config.yml \${SSH_USER}@${ec2_ip}:/home/ubuntu/                            
                             # 2. SSH into EC2, fix permissions, and launch stack
-                            ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \${SSH_USER}@${ec2_ip} '
+                            ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \${SSH_USER}@${ec2_ip} 
+
+			    # Create the target directory on the EC2 instance just in case it doesn't exist
+                            ssh -i /var/lib/jenkins/.ssh/ems-key.pem -o StrictHostKeyChecking=no ubuntu@${ec2_ip} "mkdir -p /home/ubuntu/ems-app"
+                
+                            # Securely copy the docker-compose file and the generated certificates
+                            scp -i /var/lib/jenkins/.ssh/ems-key.pem -o StrictHostKeyChecking=no -r docker-compose.yml nginx/ ubuntu@${ec2_ip}:/home/ubuntu/ems-app/
+                
+                            # Execute docker-compose on the remote server to boot the updated application
+                            ssh -i /var/lib/jenkins/.ssh/ems-key.pem -o StrictHostKeyChecking=no ubuntu@${ec2_ip} "cd /home/ubuntu/ems-app && docker-compose down && docker-compose up -d --build'
                                 # Install Docker & Docker Compose if missing
                                 if ! command -v docker &> /dev/null; then
                                     echo "Installing Docker..."
