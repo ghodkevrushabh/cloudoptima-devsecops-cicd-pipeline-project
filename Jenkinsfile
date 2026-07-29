@@ -187,7 +187,9 @@ pipeline {
                             scp -o StrictHostKeyChecking=no -i \$SSH_KEY ../employee-management/docker-compose.yml ../employee-management/prometheus.yml ../employee-management/loki-config.yml ../employee-management/promtail-config.yml \${SSH_USER}@${ec2_ip}:/home/ubuntu/                            
                             # 2. SSH into EC2, fix permissions, and launch stack
                             ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \${SSH_USER}@${ec2_ip} 
-
+                            
+                            # Navigate into the subfolder where the docker-compose.yml file lives
+                            cd employee-management
 			    # Create the target directory on the EC2 instance just in case it doesn't exist
                             ssh -i /var/lib/jenkins/.ssh/ems-key.pem -o StrictHostKeyChecking=no ubuntu@${ec2_ip} "mkdir -p /home/ubuntu/ems-app"
                 
