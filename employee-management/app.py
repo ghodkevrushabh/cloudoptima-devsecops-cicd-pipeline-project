@@ -1,10 +1,19 @@
 import os
+import sys
 import logging
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+
+# --- NEW: FORCE FLASK TO OUTPUT LOGS TO DOCKER ---
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - SECURITY-AUDIT - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+app.logger.addHandler(handler)
+app.logger.setLevel(logging.INFO)
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)  # Set the logging level to capture INFO and WARNINGs
