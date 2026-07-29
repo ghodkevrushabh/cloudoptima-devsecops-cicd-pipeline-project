@@ -4,6 +4,11 @@ services:
     image: vrushabhghodke/ems-app:latest
     ports:
       - "8080:8080"
+    # --- ADD THESE ENTERPRISE SECURITY CONTROLS ---
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     restart: always
 
   node-exporter:
