@@ -19,6 +19,10 @@ pipeline {
             steps {
                 sh '''
                 echo "Running Python Unit Tests..."
+                
+                # Navigate into the subfolder where your application files live
+                cd employee-management
+                
                 python3 -m venv venv
                 . venv/bin/activate
                 pip install -r requirements.txt
