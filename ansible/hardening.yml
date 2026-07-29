@@ -1,0 +1,35 @@
+---
+- name: Automate EC2 OS Hardening
+  hosts: all
+  become: yes # Run as root via sudo
+  tasks:
+    - name: Install fail2ban and UFW firewall
+      apt:
+        name:
+          - fail2ban
+          - ufw
+        state: present
+        update_cache: yes
+
+    - name: Ensure fail2ban is running and enabled on boot
+      systemd:
+        name: fail2ban
+        enabled: yes
+        state: started
+
+    - name: Allow SSH traffic (Port 22) through firewall
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+
+    - name: Allow Application traffic (Port 8080) through firewall
+      ufw:
+        rule: allow
+        port: '8080'
+        proto: tcp
+
+    - name: Enable the UFW firewall (Denies all other traffic)
+      ufw:
+        state: enabled
+        policy: deny

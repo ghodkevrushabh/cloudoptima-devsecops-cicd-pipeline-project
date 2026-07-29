@@ -137,6 +137,18 @@ pipeline {
                 }
             }
         }
+        stage('8.5. Infrastructure Hardening (Ansible)') {
+            steps {
+                echo "Running OS Hardening Playbook..."
+                sh '''
+                # Move into the ansible directory
+                cd ansible
+                
+                # Run the playbook against the EC2 inventory
+                ansible-playbook -i inventory.ini hardening.yml
+                '''
+            }
+        }
 	stage('9. Deploy App to EC2 (CD)') {
             // ADD THIS ENVIRONMENT BLOCK:
             environment {
