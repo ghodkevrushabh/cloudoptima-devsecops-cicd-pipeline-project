@@ -165,64 +165,40 @@ pipeline {
                 '''
             }
         }
-	stage('12. Deploy App to EC2 (CD)') {
-            // ADD THIS ENVIRONMENT BLOCK:
+        stage('12. Deploy App to EC2 (CD)') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
                 AWS_SECRET_ACCESS_KEY = credentials('aws-secret-key')
             }
             steps {
-                dir('terraform') {
-                    script {
-                        def ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
-
-                        if (ec2_ip == "") {
-                            error("Deployment Failed: No EC2 Public IP found. Is the instance running?")
-                        }
-
-                        echo "🚀 Connecting to ${ec2_ip} to deploy latest code..."
-			withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-			    sh """
-			    # 1. Securely copy config files from employee-management to EC2
-                            scp -o StrictHostKeyChecking=no -i \$SSH_KEY ../employee-management/docker-compose.yml ../employee-management/prometheus.yml ../employee-management/loki-config.yml ../employee-management/promtail-config.yml \${SSH_USER}@${ec2_ip}:/home/ubuntu/                            
-                            # 2. SSH into EC2, fix permissions, and launch stack
-                            ssh -o StrictHostKeyChecking=no -i \$SSH_KEY \${SSH_USER}@${ec2_ip} 
-                            
-                            # Navigate into the subfolder where the docker-compose.yml file lives
-                            cd employee-management
-			    # Create the target directory on the EC2 instance just in case it doesn't exist
-                            ssh -i /var/lib/jenkins/.ssh/ems-key.pem -o StrictHostKeyChecking=no ubuntu@${ec2_ip} "mkdir -p /home/ubuntu/ems-app"
-                
-                            # Securely copy the docker-compose file and the generated certificates
-                            scp -i /var/lib/jenkins/.ssh/ems-key.pem -o StrictHostKeyChecking=no -r docker-compose.yml nginx/ ubuntu@${ec2_ip}:/home/ubuntu/ems-app/
-                
-                            # Execute docker-compose on the remote server to boot the updated application
-                            ssh -i /var/lib/jenkins/.ssh/ems-key.pem -o StrictHostKeyChecking=no ubuntu@${ec2_ip} "cd /home/ubuntu/ems-app && docker-compose down && docker-compose up -d --build'
-                                # Install Docker & Docker Compose if missing
-                                if ! command -v docker &> /dev/null; then
-                                    echo "Installing Docker..."
-                                    sudo apt-get update -y
-                                    sudo apt-get install -y docker.io docker-compose-v2
-                                    sudo systemctl start docker
-                                    sudo systemctl enable docker
-                                fi
-
-                                # Fix docker socket permissions for ubuntu user
-                                sudo usermod -aG docker ubuntu || true
-                                sudo chmod 666 /var/run/docker.sock || true
-
-                                # Stop old standalone container if running
-                                sudo docker stop ems-app || true
-                                sudo docker rm ems-app || true
-
-                                # Pull latest image and start entire stack
-                                sudo docker compose pull
-                                sudo docker compose up -d
-                            '
-                            """
-                        }
-                        echo "✅ CD COMPLETE: New application code is live at http://${ec2_ip}:8080/"
+                script {
+                    // 1. Fetch the IP from the terraform directory
+                    def ec2_ip = ""
+                    dir('terraform') {
+                        ec2_ip = sh(script: "terraform output -raw ec2_public_ip", returnStdout: true).trim()
                     }
+
+                    if (ec2_ip == "") {
+                        error("Deployment Failed: No EC2 Public IP found. Is the instance running?")
+                    }
+
+                    echo "🚀 Connecting to ${ec2_ip} to deploy latest code..."
+
+                    // 2. Switch to the app directory and deploy
+                    dir('employee-management') {
+                        sh """
+                        # Create the target directory on the EC2 instance
+                        ssh -i /var/lib/jenkins/.ssh/ems-key.pem -o StrictHostKeyChecking=no ubuntu@${ec2_ip} "mkdir -p /home/ubuntu/ems-app"
+
+                        # Securely copy the files
+                        scp -i /var/lib/jenkins/.ssh/ems-key.pem -o StrictHostKeyChecking=no -r docker-compose.yml prometheus.yml loki-config.yml promtail-config.yml nginx/ ubuntu@${ec2_ip}:/home/ubuntu/ems-app/
+
+                        # Execute docker-compose on the remote server
+                        ssh -i /var/lib/jenkins/.ssh/ems-key.pem -o StrictHostKeyChecking=no ubuntu@${ec2_ip} "cd /home/ubuntu/ems-app && docker-compose down && docker-compose up -d --build"
+                        """
+                    }
+                    
+                    echo "✅ CD COMPLETE: Encrypted application is live at https://${ec2_ip}/"
                 }
             }
         }
