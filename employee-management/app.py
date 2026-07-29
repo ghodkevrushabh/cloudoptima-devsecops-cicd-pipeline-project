@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -6,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
 app = Flask(__name__)
-
+app.logger.setLevel(logging.INFO)  # Set the logging level to capture INFO and WARNINGs
 # Pull the secret key from the environment, with a fallback for local testing
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-dev-key-do-not-use-in-prod')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ems.db'
@@ -53,10 +54,14 @@ def login():
             log = AuditLog(user_id=user.id, action='LOGIN')
             db.session.add(log)
             db.session.commit()
+            #for security monitoring  (SIEM => SUCCESS)
+	    app.logger.info(f"Successful login for user: {username} from IP: {request.remote_addr}")
 
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password')
+	    # for security monitoring  (SIEM => FAILURE)
+	    app.logger.warning(f"SECURITY ALERT: Failed login attempt for username: {username} from IP: {request.remote_addr}")
 
     return render_template('login.html')
 
