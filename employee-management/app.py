@@ -7,6 +7,9 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
+#create the app
+app = Flask(__name__)
+
 # --- NEW: FORCE FLASK TO OUTPUT LOGS TO DOCKER ---
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
@@ -15,7 +18,6 @@ handler.setFormatter(formatter)
 app.logger.addHandler(handler)
 app.logger.setLevel(logging.INFO)
 
-app = Flask(__name__)
 app.logger.setLevel(logging.INFO)  # Set the logging level to capture INFO and WARNINGs
 # Pull the secret key from the environment, with a fallback for local testing
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-dev-key-do-not-use-in-prod')
