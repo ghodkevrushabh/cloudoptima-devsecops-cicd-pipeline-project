@@ -15,6 +15,18 @@ pipeline {
             }
         }
 
+        stage('1.5: Unit Test & Code Coverage') {
+            steps {
+                sh '''
+                echo "Running Python Unit Tests..."
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install -r requirements.txt
+                python3 -m pytest --cov=. --cov-report=xml:coverage.xml
+                '''
+            }
+        }
+
         stage('2. SAST (SonarQube)') {
             steps {
                 withSonarQubeEnv('SonarQube') {
