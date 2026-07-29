@@ -55,13 +55,13 @@ def login():
             db.session.add(log)
             db.session.commit()
             #for security monitoring  (SIEM => SUCCESS)
-	    app.logger.info(f"Successful login for user: {username} from IP: {request.remote_addr}")
+            app.logger.info(f"Successful login for user: {username} from IP: {request.remote_addr}")
 
             return redirect(url_for('dashboard'))
         else:
             flash('Invalid username or password')
-	    # for security monitoring  (SIEM => FAILURE)
-	    app.logger.warning(f"SECURITY ALERT: Failed login attempt for username: {username} from IP: {request.remote_addr}")
+            # for security monitoring  (SIEM => FAILURE)
+            app.logger.warning(f"SECURITY ALERT: Failed login attempt for username: {username} from IP: {request.remote_addr}")
 
     return render_template('login.html')
 
