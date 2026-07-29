@@ -23,10 +23,16 @@
         port: '22'
         proto: tcp
 
-    - name: Allow Application traffic (Port 8080) through firewall
+    - name: Allow HTTP traffic (Port 80) through firewall
       ufw:
         rule: allow
-        port: '8080'
+        port: '80'
+        proto: tcp
+
+    - name: Allow HTTPS traffic (Port 443) through firewall
+      ufw:
+        rule: allow
+        port: '443'
         proto: tcp
 
     - name: Enable the UFW firewall (Denies all other traffic)
