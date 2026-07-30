@@ -150,21 +150,21 @@ pipeline {
             }
         }
 
-	stage('11. Generate TLS Certificates') {
+        stage('11. Generate TLS Certificates') {
             steps {
                 echo "Generating ephemeral self-signed certificates for Nginx..."
-                sh '''
-                # Ensure the directory exists in the Jenkins workspace
-                mkdir -p nginx/certs
-                
-                # Generate the keys dynamically
-                openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                  -keyout nginx/certs/server.key \
-                  -out nginx/certs/server.crt \
-                  -subj "/C=IN/ST=Maharashtra/L=Pimpri-Chinchwad/O=EMS Security/CN=emsapp.com"
-                '''
+                dir('employee-management') {
+                    sh '''
+                    mkdir -p nginx/certs
+                    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                      -keyout nginx/certs/server.key \
+                      -out nginx/certs/server.crt \
+                      -subj "/C=IN/ST=Maharashtra/L=IACSDakurdi/O=EMS Security/CN=emsapp.com"
+                    '''
+                }
             }
         }
+
         stage('12. Deploy App to EC2 (CD)') {
             environment {
                 AWS_ACCESS_KEY_ID     = credentials('aws-access-key')
