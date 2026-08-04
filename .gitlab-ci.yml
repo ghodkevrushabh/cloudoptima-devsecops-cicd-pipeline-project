@@ -1,0 +1,63 @@
+
+stages:
+  - fmt_and_validate
+  - plan_and_cost
+  - security_scans
+  - build_and_push
+
+variables:
+  DOCKER_IMAGE: "vrushabhghodke/cloudoptima-app:latest"
+
+# 1. Terraform Formatting and Syntax Check
+tf_validate:
+  stage: fmt_and_validate
+  tags:
+    - devsecops-runner
+  script:
+    - echo "Running Terraform Format and Validate..."
+    - terraform fmt -check
+    - terraform init -backend=false
+    - terraform validate
+
+# 2. Terraform Plan & Infracost Estimate
+tf_plan_cost:
+  stage: plan_and_cost
+  tags:
+    - devsecops-runner
+  script:
+    - echo "Generating Execution Plan..."
+    - terraform plan -out=tfplan
+    - echo "Estimating Cloud Costs..."
+    - infracost breakdown --path . --format html > infracost-report.html
+  artifacts:
+    paths:
+      - tfplan
+      - infracost-report.html
+
+# 3. Security Scans (Checkov, Semgrep, GitLeaks)
+security_scanning:
+  stage: security_scans
+  tags:
+    - devsecops-runner
+  script:
+    - echo "Scanning IaC with Checkov..."
+    - checkov -d . || echo "Checkov found issues!"
+    - echo "Scanning Application Code with Semgrep..."
+    - semgrep scan --config auto . || echo "Semgrep found issues!"
+    - echo "Checking for hardcoded secrets..."
+    - gitleaks detect -v --source . || echo "Secrets found!"
+
+# 4. Docker Build, Trivy Scan, and Push
+docker_build_scan:
+  stage: build_and_push
+  tags:
+    - devsecops-runner
+  script:
+    - echo "Building Docker Image..."
+    - docker build -t $DOCKER_IMAGE .
+    - echo "Scanning Image for Vulnerabilities..."
+    - trivy image $DOCKER_IMAGE
+    - echo "Pushing Image to DockerHub..."
+    # Note: You will need to add DockerHub credentials as CI/CD variables in GitLab later
+    # - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    # - docker push $DOCKER_IMAGE
